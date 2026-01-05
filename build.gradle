@@ -1,0 +1,79 @@
+plugins {
+    id 'java'
+    id 'application'
+}
+
+group = 'com.fall14123'
+version = '1.0.0'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'com.fasterxml.jackson.core:jackson-core:2.16.1'
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.16.1'
+    implementation 'com.sun.net.httpserver:http:20070405'
+    
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.10.1'
+    testImplementation 'org.junit.jupiter:junit-jupiter-engine:5.10.1'
+    testImplementation 'org.mockito:mockito-core:5.8.0'
+}
+
+test {
+    useJUnitPlatform()
+}
+
+application {
+    mainClass = 'com.fall14123.jdbc.http.HttpJdbcClientExample'
+}
+
+tasks.register('downloadJdk') {
+    doLast {
+        def jdkDir = file('jdk')
+        if (!jdkDir.exists()) {
+            jdkDir.mkdirs()
+            println "JDK directory created at: ${jdkDir.absolutePath}"
+            println "Please download Amazon Corretto 21 JDK and extract to: ${jdkDir.absolutePath}"
+        } else {
+            println "JDK directory already exists at: ${jdkDir.absolutePath}"
+        }
+    }
+}
+
+compileJava {
+    options.encoding = 'UTF-8'
+}
+
+compileTestJava {
+    options.encoding = 'UTF-8'
+}
+
+tasks.register('uberjar', Jar) {
+    description = 'Assembles an uber jar containing all dependencies'
+    archiveClassifier = 'all'
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    
+    from {
+        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+    
+    with jar
+    
+    manifest {
+        attributes(
+            'Main-Class': 'com.fall14123.jdbc.http.HttpJdbcClientExample'
+        )
+    }
+    
+    // Exclude signature files that can cause issues
+    exclude 'META-INF/*.SF'
+    exclude 'META-INF/*.DSA'
+    exclude 'META-INF/*.RSA'
+}
