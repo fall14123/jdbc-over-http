@@ -165,9 +165,16 @@ public class HttpJdbcConnection implements Connection {
                     responseBody = readInputStream(is);
                 }
                 
+                System.out.println("DEBUG: Raw response body: '" + responseBody + "'");
+                
                 try {
-                    return objectMapper.readValue(responseBody, QueryResult.class);
+                    QueryResult result = objectMapper.readValue(responseBody, QueryResult.class);
+                    System.out.println("DEBUG: Deserialized as QueryResult - columns: " + 
+                                     (result.getColumns() != null ? result.getColumns().size() : "null") +
+                                     ", updateCount: " + result.getUpdateCount());
+                    return result;
                 } catch (Exception e) {
+                    System.out.println("DEBUG: Failed to deserialize as QueryResult, trying generic parsing");
                     return parseGenericResponse(responseBody);
                 }
             } else {
@@ -190,8 +197,45 @@ public class HttpJdbcConnection implements Connection {
 
     private QueryResult parseGenericResponse(String responseBody) throws SQLException {
         try {
+            // Handle empty response body (common for DDL/DML operations)
+            if (responseBody == null || responseBody.trim().isEmpty()) {
+                return new QueryResult(null, null, 0);
+            }
+            
+            // Debug: print response body to understand what we're getting
+            System.out.println("DEBUG: Response body: '" + responseBody + "'");
+            
             @SuppressWarnings("unchecked")
             java.util.Map<String, Object> jsonMap = objectMapper.readValue(responseBody, java.util.Map.class);
+            
+            // Check if this looks like an update result (has count/affected_rows etc.)
+            // Check both lowercase and capitalized versions
+            String[] countKeys = {"count", "Count", "affected_rows", "Affected_Rows", 
+                                "changes", "Changes", "rows_affected", "Rows_Affected"};
+            
+            Object countValue = null;
+            for (String key : countKeys) {
+                if (jsonMap.containsKey(key)) {
+                    countValue = jsonMap.get(key);
+                    break;
+                }
+            }
+            
+            if (countValue != null) {
+                // This is an update/insert result, return it as an update count
+                int updateCount = 0;
+                if (countValue instanceof Number) {
+                    updateCount = ((Number) countValue).intValue();
+                } else if (countValue instanceof String) {
+                    try {
+                        updateCount = Integer.parseInt((String) countValue);
+                    } catch (NumberFormatException e) {
+                        updateCount = 0;
+                    }
+                }
+                System.out.println("DEBUG: Detected update operation with count: " + updateCount);
+                return new QueryResult(null, null, updateCount);
+            }
             
             java.util.List<String> columns = new java.util.ArrayList<>(jsonMap.keySet());
             java.util.List<Object> rowValues = new java.util.ArrayList<>(jsonMap.values());
