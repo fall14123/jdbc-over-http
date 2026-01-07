@@ -40,8 +40,12 @@ public class HttpJdbcDriver implements Driver {
             int readTimeout = parseTimeoutProperty(info, "readTimeout", 
                                                   System.getProperty("jdbc.http.read.timeout", "60000"));
             
+            // Parse keep-alive setting
+            boolean keepAlive = parseBooleanProperty(info, "keepAlive", 
+                                                   System.getProperty("jdbc.http.keep.alive", "true"));
+            
             return new HttpJdbcConnection(serverUrl, username, password, objectMapper, 
-                                        LogLevel.fromString(logLevel), connectTimeout, readTimeout);
+                                        LogLevel.fromString(logLevel), connectTimeout, readTimeout, keepAlive);
         } catch (Exception e) {
             throw new SQLException("Failed to connect to HTTP JDBC server", e);
         }
@@ -98,5 +102,10 @@ public class HttpJdbcDriver implements Driver {
             // Return default timeout if parsing fails
             return Integer.parseInt(defaultValue);
         }
+    }
+
+    private boolean parseBooleanProperty(Properties info, String propertyName, String defaultValue) {
+        String value = info.getProperty(propertyName, defaultValue);
+        return Boolean.parseBoolean(value);
     }
 }

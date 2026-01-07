@@ -164,6 +164,60 @@ props.setProperty("readTimeout", "300000");    // 5 minutes
 - Values must be positive integers (milliseconds)
 - Invalid values fall back to defaults
 
+---
+
+# HTTP Keep-Alive Configuration
+
+The driver supports HTTP keep-alive connections to improve performance by reusing connections for multiple requests.
+
+## Keep-Alive Benefits
+
+- **Reduced Latency**: Eliminates TCP handshake overhead for subsequent requests
+- **Better Performance**: Reuses existing connections instead of creating new ones
+- **Server Efficiency**: Reduces server connection overhead
+
+## Default Behavior
+
+Keep-alive is **enabled by default** (recommended for most use cases).
+
+## Configuration Options
+
+### 1. System Property
+
+```bash
+java -Djdbc.http.keep.alive=false MyApplication  # Disable keep-alive
+```
+
+### 2. Connection Property
+
+```java
+Properties props = new Properties();
+props.setProperty("keepAlive", "false");  // Disable keep-alive
+Connection conn = DriverManager.getConnection("jdbc:http://localhost:9999/", props);
+```
+
+### 3. Combined Configuration Example
+
+```java
+Properties props = new Properties();
+props.setProperty("user", "myuser");
+props.setProperty("password", "mypass");
+props.setProperty("logLevel", "DEBUG");
+props.setProperty("connectTimeout", "10000");
+props.setProperty("readTimeout", "45000");
+props.setProperty("keepAlive", "true");  // Enable keep-alive (default)
+
+Connection conn = DriverManager.getConnection("jdbc:http://localhost:9999/", props);
+```
+
+## When to Disable Keep-Alive
+
+Consider disabling keep-alive in these scenarios:
+- **Firewall Issues**: Some firewalls drop idle connections
+- **Load Balancers**: Some load balancers don't handle keep-alive well
+- **Short-lived Applications**: Apps that make very few requests
+- **Debugging**: To ensure each request uses a fresh connection
+
 ## System Property Reference
 
 | Property | Default | Description |
@@ -171,6 +225,7 @@ props.setProperty("readTimeout", "300000");    // 5 minutes
 | `jdbc.http.log.level` | INFO | Logging level (ERROR, WARN, INFO, DEBUG, TRACE) |
 | `jdbc.http.connect.timeout` | 30000 | Connection timeout in milliseconds |
 | `jdbc.http.read.timeout` | 60000 | Read timeout in milliseconds |
+| `jdbc.http.keep.alive` | true | Enable HTTP keep-alive connections |
 
 ## Connection Property Reference
 
@@ -179,3 +234,4 @@ props.setProperty("readTimeout", "300000");    // 5 minutes
 | `logLevel` | INFO | Logging level for this connection |
 | `connectTimeout` | 30000 | Connection timeout in milliseconds |
 | `readTimeout` | 60000 | Read timeout in milliseconds |
+| `keepAlive` | true | Enable HTTP keep-alive for this connection |

@@ -17,19 +17,25 @@ public class HttpJdbcConnection implements Connection {
     private final HttpJdbcLogger logger;
     private final int connectTimeoutMs;
     private final int readTimeoutMs;
+    private final boolean keepAlive;
     private boolean closed = false;
     private boolean autoCommit = true;
 
     public HttpJdbcConnection(URL serverUrl, String username, String password, ObjectMapper objectMapper) {
-        this(serverUrl, username, password, objectMapper, LogLevel.INFO, 30000, 60000);
+        this(serverUrl, username, password, objectMapper, LogLevel.INFO, 30000, 60000, true);
     }
 
     public HttpJdbcConnection(URL serverUrl, String username, String password, ObjectMapper objectMapper, LogLevel logLevel) {
-        this(serverUrl, username, password, objectMapper, logLevel, 30000, 60000);
+        this(serverUrl, username, password, objectMapper, logLevel, 30000, 60000, true);
     }
 
     public HttpJdbcConnection(URL serverUrl, String username, String password, ObjectMapper objectMapper, 
                              LogLevel logLevel, int connectTimeoutMs, int readTimeoutMs) {
+        this(serverUrl, username, password, objectMapper, logLevel, connectTimeoutMs, readTimeoutMs, true);
+    }
+
+    public HttpJdbcConnection(URL serverUrl, String username, String password, ObjectMapper objectMapper, 
+                             LogLevel logLevel, int connectTimeoutMs, int readTimeoutMs, boolean keepAlive) {
         this.serverUrl = serverUrl;
         this.username = username;
         this.password = password;
@@ -37,9 +43,10 @@ public class HttpJdbcConnection implements Connection {
         this.logger = new HttpJdbcLogger("HttpJdbcConnection", logLevel);
         this.connectTimeoutMs = connectTimeoutMs;
         this.readTimeoutMs = readTimeoutMs;
+        this.keepAlive = keepAlive;
         
         logger.debug("Connection initialized with connectTimeout=" + connectTimeoutMs + 
-                    "ms, readTimeout=" + readTimeoutMs + "ms");
+                    "ms, readTimeout=" + readTimeoutMs + "ms, keepAlive=" + keepAlive);
     }
 
     @Override
@@ -169,8 +176,15 @@ public class HttpJdbcConnection implements Connection {
             connection.setConnectTimeout(connectTimeoutMs);
             connection.setReadTimeout(readTimeoutMs);
             
+            // Apply keep-alive setting
+            if (keepAlive) {
+                connection.setRequestProperty("Connection", "keep-alive");
+            } else {
+                connection.setRequestProperty("Connection", "close");
+            }
+            
             logger.debug("HTTP request configured with connectTimeout=" + connectTimeoutMs + 
-                        "ms, readTimeout=" + readTimeoutMs + "ms");
+                        "ms, readTimeout=" + readTimeoutMs + "ms, keepAlive=" + keepAlive);
 
             if (username != null && !username.isEmpty()) {
                 String auth = username + ":" + password;
