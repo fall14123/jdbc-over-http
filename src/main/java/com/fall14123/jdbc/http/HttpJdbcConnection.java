@@ -14,26 +14,44 @@ public class HttpJdbcConnection implements Connection {
     private final String username;
     private final String password;
     private final ObjectMapper objectMapper;
+    private final HttpJdbcLogger logger;
+    private final int connectTimeoutMs;
+    private final int readTimeoutMs;
     private boolean closed = false;
     private boolean autoCommit = true;
 
     public HttpJdbcConnection(URL serverUrl, String username, String password, ObjectMapper objectMapper) {
+        this(serverUrl, username, password, objectMapper, LogLevel.INFO, 30000, 60000);
+    }
+
+    public HttpJdbcConnection(URL serverUrl, String username, String password, ObjectMapper objectMapper, LogLevel logLevel) {
+        this(serverUrl, username, password, objectMapper, logLevel, 30000, 60000);
+    }
+
+    public HttpJdbcConnection(URL serverUrl, String username, String password, ObjectMapper objectMapper, 
+                             LogLevel logLevel, int connectTimeoutMs, int readTimeoutMs) {
         this.serverUrl = serverUrl;
         this.username = username;
         this.password = password;
         this.objectMapper = objectMapper;
+        this.logger = new HttpJdbcLogger("HttpJdbcConnection", logLevel);
+        this.connectTimeoutMs = connectTimeoutMs;
+        this.readTimeoutMs = readTimeoutMs;
+        
+        logger.debug("Connection initialized with connectTimeout=" + connectTimeoutMs + 
+                    "ms, readTimeout=" + readTimeoutMs + "ms");
     }
 
     @Override
     public Statement createStatement() throws SQLException {
         checkClosed();
-        return new HttpJdbcStatement(this);
+        return new HttpJdbcStatement(this, logger.getLogLevel());
     }
 
     @Override
     public PreparedStatement prepareStatement(String sql) throws SQLException {
         checkClosed();
-        return new HttpJdbcPreparedStatement(this, sql);
+        return new HttpJdbcPreparedStatement(this, sql, logger.getLogLevel());
     }
 
     @Override
@@ -146,6 +164,13 @@ public class HttpJdbcConnection implements Connection {
             connection.setRequestMethod("POST");
             connection.setRequestProperty("Content-Type", "text/plain");
             connection.setDoOutput(true);
+            
+            // Apply timeout settings
+            connection.setConnectTimeout(connectTimeoutMs);
+            connection.setReadTimeout(readTimeoutMs);
+            
+            logger.debug("HTTP request configured with connectTimeout=" + connectTimeoutMs + 
+                        "ms, readTimeout=" + readTimeoutMs + "ms");
 
             if (username != null && !username.isEmpty()) {
                 String auth = username + ":" + password;
@@ -165,16 +190,16 @@ public class HttpJdbcConnection implements Connection {
                     responseBody = readInputStream(is);
                 }
                 
-                System.out.println("DEBUG: Raw response body: '" + responseBody + "'");
+                logger.debug("Raw response body: '" + responseBody + "'");
                 
                 try {
                     QueryResult result = objectMapper.readValue(responseBody, QueryResult.class);
-                    System.out.println("DEBUG: Deserialized as QueryResult - columns: " + 
+                    logger.debug("Deserialized as QueryResult - columns: " + 
                                      (result.getColumns() != null ? result.getColumns().size() : "null") +
                                      ", updateCount: " + result.getUpdateCount());
                     return result;
                 } catch (Exception e) {
-                    System.out.println("DEBUG: Failed to deserialize as QueryResult, trying generic parsing");
+                    logger.debug("Failed to deserialize as QueryResult, trying generic parsing");
                     return parseGenericResponse(responseBody);
                 }
             } else {
@@ -202,8 +227,7 @@ public class HttpJdbcConnection implements Connection {
                 return new QueryResult(null, null, 0);
             }
             
-            // Debug: print response body to understand what we're getting
-            System.out.println("DEBUG: Response body: '" + responseBody + "'");
+            logger.debug("Response body: '" + responseBody + "'");
             
             @SuppressWarnings("unchecked")
             java.util.Map<String, Object> jsonMap = objectMapper.readValue(responseBody, java.util.Map.class);
@@ -233,7 +257,7 @@ public class HttpJdbcConnection implements Connection {
                         updateCount = 0;
                     }
                 }
-                System.out.println("DEBUG: Detected update operation with count: " + updateCount);
+                logger.debug("Detected update operation with count: " + updateCount);
                 return new QueryResult(null, null, updateCount);
             }
             

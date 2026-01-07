@@ -32,8 +32,16 @@ public class HttpJdbcDriver implements Driver {
             URL serverUrl = parseJdbcUrl(url);
             String username = info.getProperty("user", "");
             String password = info.getProperty("password", "");
+            String logLevel = info.getProperty("logLevel", System.getProperty("jdbc.http.log.level", "INFO"));
             
-            return new HttpJdbcConnection(serverUrl, username, password, objectMapper);
+            // Parse timeout settings
+            int connectTimeout = parseTimeoutProperty(info, "connectTimeout", 
+                                                    System.getProperty("jdbc.http.connect.timeout", "30000"));
+            int readTimeout = parseTimeoutProperty(info, "readTimeout", 
+                                                  System.getProperty("jdbc.http.read.timeout", "60000"));
+            
+            return new HttpJdbcConnection(serverUrl, username, password, objectMapper, 
+                                        LogLevel.fromString(logLevel), connectTimeout, readTimeout);
         } catch (Exception e) {
             throw new SQLException("Failed to connect to HTTP JDBC server", e);
         }
@@ -80,5 +88,15 @@ public class HttpJdbcDriver implements Driver {
         }
         
         return new URL(httpUrl);
+    }
+
+    private int parseTimeoutProperty(Properties info, String propertyName, String defaultValue) {
+        String value = info.getProperty(propertyName, defaultValue);
+        try {
+            return Integer.parseInt(value);
+        } catch (NumberFormatException e) {
+            // Return default timeout if parsing fails
+            return Integer.parseInt(defaultValue);
+        }
     }
 }

@@ -5,12 +5,18 @@ import java.util.List;
 
 public class HttpJdbcStatement implements Statement {
     private final HttpJdbcConnection connection;
+    private final HttpJdbcLogger logger;
     private ResultSet currentResultSet;
     private int updateCount = -1;
     private boolean closed = false;
 
     public HttpJdbcStatement(HttpJdbcConnection connection) {
+        this(connection, LogLevel.INFO);
+    }
+
+    public HttpJdbcStatement(HttpJdbcConnection connection, LogLevel logLevel) {
         this.connection = connection;
+        this.logger = new HttpJdbcLogger("HttpJdbcStatement", logLevel);
     }
 
     @Override
@@ -30,17 +36,17 @@ public class HttpJdbcStatement implements Statement {
     @Override
     public int executeUpdate(String sql) throws SQLException {
         checkClosed();
-        System.out.println("DEBUG: executeUpdate called with SQL: " + sql);
+        logger.debug("executeUpdate called with SQL: " + sql);
         QueryResult result = connection.executeQuery(sql);
         
-        System.out.println("DEBUG: executeUpdate got result - columns: " + 
+        logger.debug("executeUpdate got result - columns: " + 
                          (result.getColumns() != null ? result.getColumns().size() : "null") +
                          ", updateCount: " + result.getUpdateCount());
         
         // For DDL operations and DML operations, return the update count
         // If columns exist, this is likely a query that should use executeQuery instead
         if (result.getColumns() != null && !result.getColumns().isEmpty()) {
-            System.out.println("DEBUG: executeUpdate found columns: " + result.getColumns());
+            logger.debug("executeUpdate found columns: " + result.getColumns());
             throw new SQLException("Query returned a result set, use executeQuery instead");
         }
         

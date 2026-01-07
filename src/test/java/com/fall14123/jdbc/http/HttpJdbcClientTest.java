@@ -244,20 +244,20 @@ public class HttpJdbcClientTest {
         try (Connection conn = DriverManager.getConnection(url, props)) {
             // Create table
             try (Statement stmt = conn.createStatement()) {
-                System.out.println("DEBUG: About to execute CREATE TABLE");
+                // System.out.println("DEBUG: About to execute CREATE TABLE");
                 stmt.executeUpdate("CREATE TABLE IF NOT EXISTS events (id INTEGER, name VARCHAR(100), event_date DATE)");
-                System.out.println("DEBUG: CREATE TABLE completed");
+                // System.out.println("DEBUG: CREATE TABLE completed");
                 
                 // Insert dummy data
-                System.out.println("DEBUG: About to execute INSERT statements");
+                // System.out.println("DEBUG: About to execute INSERT statements");
                 stmt.executeUpdate("INSERT INTO events VALUES (1, 'New Year', '2024-01-01')");
-                System.out.println("DEBUG: INSERT 1 completed");
+                // System.out.println("DEBUG: INSERT 1 completed");
                 stmt.executeUpdate("INSERT INTO events VALUES (2, 'Christmas', '2023-12-25')");
-                System.out.println("DEBUG: INSERT 2 completed");
+                // System.out.println("DEBUG: INSERT 2 completed");
                 stmt.executeUpdate("INSERT INTO events VALUES (3, 'Independence Day', '2024-07-04')");
-                System.out.println("DEBUG: INSERT 3 completed");
+                // System.out.println("DEBUG: INSERT 3 completed");
                 stmt.executeUpdate("INSERT INTO events VALUES (4, 'Halloween', '2023-10-31')");
-                System.out.println("DEBUG: INSERT 4 completed");
+                // System.out.println("DEBUG: INSERT 4 completed");
             }
             
             // Filter by date

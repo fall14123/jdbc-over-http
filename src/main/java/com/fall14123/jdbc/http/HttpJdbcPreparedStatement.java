@@ -14,7 +14,11 @@ public class HttpJdbcPreparedStatement extends HttpJdbcStatement implements Prep
     private final List<Object> parameters = new ArrayList<>();
 
     public HttpJdbcPreparedStatement(HttpJdbcConnection connection, String sql) {
-        super(connection);
+        this(connection, sql, LogLevel.INFO);
+    }
+
+    public HttpJdbcPreparedStatement(HttpJdbcConnection connection, String sql, LogLevel logLevel) {
+        super(connection, logLevel);
         this.originalSql = sql;
         
         int paramCount = 0;
