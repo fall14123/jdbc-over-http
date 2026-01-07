@@ -46,7 +46,7 @@ public class HttpJdbcPreparedStatement extends HttpJdbcStatement implements Prep
 
     private String buildSql() {
         String sql = originalSql;
-        for (int i = parameters.size() - 1; i >= 0; i--) {
+        for (int i = 0; i <= parameters.size() - 1; i++) {
             Object param = parameters.get(i);
             String paramStr = param == null ? "NULL" : formatParameter(param);
             sql = sql.replaceFirst("\\?", paramStr);
