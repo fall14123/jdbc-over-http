@@ -19,7 +19,7 @@ repositories {
 dependencies {
     implementation 'com.fasterxml.jackson.core:jackson-core:2.16.1'
     implementation 'com.fasterxml.jackson.core:jackson-databind:2.16.1'
-    implementation 'com.sun.net.httpserver:http:20070405'
+    implementation 'com.jayway.jsonpath:json-path:2.9.0'
     
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.10.1'
     testImplementation 'org.junit.jupiter:junit-jupiter-engine:5.10.1'

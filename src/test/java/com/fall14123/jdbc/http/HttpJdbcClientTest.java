@@ -31,6 +31,7 @@ public class HttpJdbcClientTest {
         Properties props = new Properties();
         props.setProperty("user", "user");
         props.setProperty("password", "pass");
+        props.setProperty("schema", "httpserver");
 
         try (Connection conn = DriverManager.getConnection(url, props)) {
             System.out.println("Connection successful!");
@@ -52,6 +53,7 @@ public class HttpJdbcClientTest {
         Properties props = new Properties();
         props.setProperty("user", "user");
         props.setProperty("password", "pass");
+        props.setProperty("schema", "httpserver");
 
         try (Connection conn = DriverManager.getConnection(url, props)) {
             String sql = "SELECT ? as message, ? as number";
@@ -76,6 +78,7 @@ public class HttpJdbcClientTest {
         Properties props = new Properties();
         props.setProperty("user", "user");
         props.setProperty("password", "pass");
+        props.setProperty("schema", "httpserver");
 
         try (Connection conn = DriverManager.getConnection(url, props)) {
             String sql = "SELECT ? as input_date, ? as another_date";
@@ -102,6 +105,7 @@ public class HttpJdbcClientTest {
         Properties props = new Properties();
         props.setProperty("user", "user");
         props.setProperty("password", "pass");
+        props.setProperty("schema", "httpserver");
 
         try (Connection conn = DriverManager.getConnection(url, props)) {
             String sql = "SELECT ? as input_time, ? as another_time";
@@ -128,6 +132,7 @@ public class HttpJdbcClientTest {
         Properties props = new Properties();
         props.setProperty("user", "user");
         props.setProperty("password", "pass");
+        props.setProperty("schema", "httpserver");
 
         try (Connection conn = DriverManager.getConnection(url, props)) {
             String sql = "SELECT ? as input_timestamp, ? as another_timestamp";
@@ -154,6 +159,7 @@ public class HttpJdbcClientTest {
         Properties props = new Properties();
         props.setProperty("user", "user");
         props.setProperty("password", "pass");
+        props.setProperty("schema", "httpserver");
 
         try (Connection conn = DriverManager.getConnection(url, props)) {
             String sql = "SELECT 'Event A' as event_name, ? as event_date WHERE ? >= ?";
@@ -182,6 +188,7 @@ public class HttpJdbcClientTest {
         Properties props = new Properties();
         props.setProperty("user", "user");
         props.setProperty("password", "pass");
+        props.setProperty("schema", "httpserver");
 
         try (Connection conn = DriverManager.getConnection(url, props)) {
             String sql = "SELECT 'Morning Meeting' as event_name, ? as event_time WHERE ? > ?";
@@ -210,6 +217,7 @@ public class HttpJdbcClientTest {
         Properties props = new Properties();
         props.setProperty("user", "user");
         props.setProperty("password", "pass");
+        props.setProperty("schema", "httpserver");
 
         try (Connection conn = DriverManager.getConnection(url, props)) {
             String sql = "SELECT 'Data Update' as event_name, ? as event_timestamp WHERE ? BETWEEN ? AND ?";
@@ -240,6 +248,7 @@ public class HttpJdbcClientTest {
         Properties props = new Properties();
         props.setProperty("user", "user");
         props.setProperty("password", "pass");
+        props.setProperty("schema", "httpserver");
 
         try (Connection conn = DriverManager.getConnection(url, props)) {
             // Create table
@@ -289,6 +298,7 @@ public class HttpJdbcClientTest {
         Properties props = new Properties();
         props.setProperty("user", "user");
         props.setProperty("password", "pass");
+        props.setProperty("schema", "httpserver");
 
         try (Connection conn = DriverManager.getConnection(url, props)) {
             // Create table
@@ -333,6 +343,7 @@ public class HttpJdbcClientTest {
         Properties props = new Properties();
         props.setProperty("user", "user");
         props.setProperty("password", "pass");
+        props.setProperty("schema", "httpserver");
 
         try (Connection conn = DriverManager.getConnection(url, props)) {
             // Create table
@@ -377,6 +388,7 @@ public class HttpJdbcClientTest {
         Properties props = new Properties();
         props.setProperty("user", "user");
         props.setProperty("password", "pass");
+        props.setProperty("schema", "httpserver");
 
         try (Connection conn = DriverManager.getConnection(url, props)) {
             System.out.println("SSL Connection successful!");

@@ -10,336 +10,97 @@ import java.util.Calendar;
 import java.util.List;
 
 public class HttpJdbcPreparedStatement extends HttpJdbcStatement implements PreparedStatement {
-    private final String originalSql;
-    private final List<Object> parameters = new ArrayList<>();
-
-    public HttpJdbcPreparedStatement(HttpJdbcConnection connection, String sql) {
-        this(connection, sql, LogLevel.INFO);
-    }
+    private final String sql;
+    private final List<QueryRequest.Parameter> parameters;
 
     public HttpJdbcPreparedStatement(HttpJdbcConnection connection, String sql, LogLevel logLevel) {
         super(connection, logLevel);
-        this.originalSql = sql;
-        
-        int paramCount = 0;
-        for (int i = 0; i < sql.length(); i++) {
-            if (sql.charAt(i) == '?') {
-                paramCount++;
-            }
-        }
-        
-        for (int i = 0; i < paramCount; i++) {
-            parameters.add(null);
-        }
+        this.sql = sql;
+        int count = (int) sql.chars().filter(c -> c == '?').count();
+        this.parameters = new ArrayList<>(count);
+        for (int i = 0; i < count; i++) parameters.add(null);
     }
 
     @Override
     public ResultSet executeQuery() throws SQLException {
-        return super.executeQuery(buildSql());
+        QueryResult result = connection.executeQuery(sql, parameters);
+        currentResultSet = new HttpJdbcResultSet(result);
+        return currentResultSet;
     }
 
     @Override
     public int executeUpdate() throws SQLException {
-        return super.executeUpdate(buildSql());
+        return connection.executeQuery(sql, parameters).getUpdateCount();
     }
 
     @Override
     public boolean execute() throws SQLException {
-        return super.execute(buildSql());
-    }
-
-    private String buildSql() {
-        String sql = originalSql;
-        for (int i = 0; i <= parameters.size() - 1; i++) {
-            Object param = parameters.get(i);
-            String paramStr = param == null ? "NULL" : formatParameter(param);
-            sql = sql.replaceFirst("\\?", paramStr);
+        QueryResult result = connection.executeQuery(sql, parameters);
+        if (result.getColumns() != null) {
+            currentResultSet = new HttpJdbcResultSet(result);
+            return true;
         }
-        return sql;
+        currentUpdateCount = result.getUpdateCount();
+        return false;
     }
 
-    private String formatParameter(Object param) {
-        if (param == null) {
-            return "NULL";
-        } else if (param instanceof String) {
-            return "'" + ((String) param).replace("'", "''") + "'";
-        } else if (param instanceof Number) {
-            return param.toString();
-        } else if (param instanceof Boolean) {
-            return ((Boolean) param) ? "TRUE" : "FALSE";
-        } else if (param instanceof Date || param instanceof Time || param instanceof Timestamp) {
-            return "'" + param.toString() + "'";
-        } else {
-            return "'" + param.toString().replace("'", "''") + "'";
-        }
+    private void setParam(int i, Object v, String t) throws SQLException {
+        if (i < 1 || i > parameters.size()) throw new SQLException("Parameter index out of range: " + i);
+        parameters.set(i - 1, new QueryRequest.Parameter(v, t));
     }
 
-    @Override
-    public void setNull(int parameterIndex, int sqlType) throws SQLException {
-        setParameter(parameterIndex, null);
-    }
+    @Override public void setNull(int i, int t) throws SQLException { setParam(i, null, "null"); }
+    @Override public void setBoolean(int i, boolean x) throws SQLException { setParam(i, x, "boolean"); }
+    @Override public void setByte(int i, byte x) throws SQLException { setParam(i, x, "byte"); }
+    @Override public void setShort(int i, short x) throws SQLException { setParam(i, x, "short"); }
+    @Override public void setInt(int i, int x) throws SQLException { setParam(i, x, "int"); }
+    @Override public void setLong(int i, long x) throws SQLException { setParam(i, x, "long"); }
+    @Override public void setFloat(int i, float x) throws SQLException { setParam(i, x, "float"); }
+    @Override public void setDouble(int i, double x) throws SQLException { setParam(i, x, "double"); }
+    @Override public void setBigDecimal(int i, BigDecimal x) throws SQLException { setParam(i, x != null ? x.toString() : null, "decimal"); }
+    @Override public void setString(int i, String x) throws SQLException { setParam(i, x, "string"); }
+    @Override public void setBytes(int i, byte[] x) throws SQLException { setParam(i, x != null ? java.util.Base64.getEncoder().encodeToString(x) : null, "bytes"); }
+    @Override public void setDate(int i, Date x) throws SQLException { setParam(i, x != null ? x.toString() : null, "date"); }
+    @Override public void setTime(int i, Time x) throws SQLException { setParam(i, x != null ? x.toString() : null, "time"); }
+    @Override public void setTimestamp(int i, Timestamp x) throws SQLException { setParam(i, x != null ? x.toString() : null, "timestamp"); }
+    @Override public void setDate(int i, Date x, Calendar c) throws SQLException { setDate(i, x); }
+    @Override public void setTime(int i, Time x, Calendar c) throws SQLException { setTime(i, x); }
+    @Override public void setTimestamp(int i, Timestamp x, Calendar c) throws SQLException { setTimestamp(i, x); }
+    @Override public void setObject(int i, Object x) throws SQLException { setParam(i, x, "object"); }
+    @Override public void setObject(int i, Object x, int t) throws SQLException { setObject(i, x); }
+    @Override public void setObject(int i, Object x, int t, int s) throws SQLException { setObject(i, x); }
+    @Override public void setNull(int i, int t, String n) throws SQLException { setNull(i, t); }
+    @Override public void setURL(int i, URL x) throws SQLException { setParam(i, x != null ? x.toString() : null, "string"); }
+    @Override public void setNString(int i, String x) throws SQLException { setString(i, x); }
+    @Override public void clearParameters() { for (int i = 0; i < parameters.size(); i++) parameters.set(i, null); }
 
-    @Override
-    public void setBoolean(int parameterIndex, boolean x) throws SQLException {
-        setParameter(parameterIndex, x);
-    }
-
-    @Override
-    public void setByte(int parameterIndex, byte x) throws SQLException {
-        setParameter(parameterIndex, x);
-    }
-
-    @Override
-    public void setShort(int parameterIndex, short x) throws SQLException {
-        setParameter(parameterIndex, x);
-    }
-
-    @Override
-    public void setInt(int parameterIndex, int x) throws SQLException {
-        setParameter(parameterIndex, x);
-    }
-
-    @Override
-    public void setLong(int parameterIndex, long x) throws SQLException {
-        setParameter(parameterIndex, x);
-    }
-
-    @Override
-    public void setFloat(int parameterIndex, float x) throws SQLException {
-        setParameter(parameterIndex, x);
-    }
-
-    @Override
-    public void setDouble(int parameterIndex, double x) throws SQLException {
-        setParameter(parameterIndex, x);
-    }
-
-    @Override
-    public void setBigDecimal(int parameterIndex, BigDecimal x) throws SQLException {
-        setParameter(parameterIndex, x);
-    }
-
-    @Override
-    public void setString(int parameterIndex, String x) throws SQLException {
-        setParameter(parameterIndex, x);
-    }
-
-    @Override
-    public void setBytes(int parameterIndex, byte[] x) throws SQLException {
-        setParameter(parameterIndex, x);
-    }
-
-    @Override
-    public void setDate(int parameterIndex, Date x) throws SQLException {
-        setParameter(parameterIndex, x);
-    }
-
-    @Override
-    public void setTime(int parameterIndex, Time x) throws SQLException {
-        setParameter(parameterIndex, x);
-    }
-
-    @Override
-    public void setTimestamp(int parameterIndex, Timestamp x) throws SQLException {
-        setParameter(parameterIndex, x);
-    }
-
-    private void setParameter(int parameterIndex, Object value) throws SQLException {
-        if (parameterIndex < 1 || parameterIndex > parameters.size()) {
-            throw new SQLException("Parameter index out of range: " + parameterIndex);
-        }
-        parameters.set(parameterIndex - 1, value);
-    }
-
-    @Override
-    public void setAsciiStream(int parameterIndex, InputStream x, int length) throws SQLException {
-        throw new SQLFeatureNotSupportedException("setAsciiStream not supported");
-    }
-
-    @Override
-    public void setUnicodeStream(int parameterIndex, InputStream x, int length) throws SQLException {
-        throw new SQLFeatureNotSupportedException("setUnicodeStream not supported");
-    }
-
-    @Override
-    public void setBinaryStream(int parameterIndex, InputStream x, int length) throws SQLException {
-        throw new SQLFeatureNotSupportedException("setBinaryStream not supported");
-    }
-
-    @Override
-    public void clearParameters() throws SQLException {
-        for (int i = 0; i < parameters.size(); i++) {
-            parameters.set(i, null);
-        }
-    }
-
-    @Override
-    public void setObject(int parameterIndex, Object x, int targetSqlType) throws SQLException {
-        setParameter(parameterIndex, x);
-    }
-
-    @Override
-    public void setObject(int parameterIndex, Object x) throws SQLException {
-        setParameter(parameterIndex, x);
-    }
-
-    @Override
-    public void addBatch() throws SQLException {
-        throw new SQLFeatureNotSupportedException("Batch updates not supported");
-    }
-
-    @Override
-    public void setCharacterStream(int parameterIndex, Reader reader, int length) throws SQLException {
-        throw new SQLFeatureNotSupportedException("setCharacterStream not supported");
-    }
-
-    @Override
-    public void setRef(int parameterIndex, Ref x) throws SQLException {
-        throw new SQLFeatureNotSupportedException("setRef not supported");
-    }
-
-    @Override
-    public void setBlob(int parameterIndex, Blob x) throws SQLException {
-        throw new SQLFeatureNotSupportedException("setBlob not supported");
-    }
-
-    @Override
-    public void setClob(int parameterIndex, Clob x) throws SQLException {
-        throw new SQLFeatureNotSupportedException("setClob not supported");
-    }
-
-    @Override
-    public void setArray(int parameterIndex, Array x) throws SQLException {
-        throw new SQLFeatureNotSupportedException("setArray not supported");
-    }
-
-    @Override
-    public ResultSetMetaData getMetaData() throws SQLException {
-        throw new SQLFeatureNotSupportedException("getMetaData not supported");
-    }
-
-    @Override
-    public void setDate(int parameterIndex, Date x, Calendar cal) throws SQLException {
-        setParameter(parameterIndex, x);
-    }
-
-    @Override
-    public void setTime(int parameterIndex, Time x, Calendar cal) throws SQLException {
-        setParameter(parameterIndex, x);
-    }
-
-    @Override
-    public void setTimestamp(int parameterIndex, Timestamp x, Calendar cal) throws SQLException {
-        setParameter(parameterIndex, x);
-    }
-
-    @Override
-    public void setNull(int parameterIndex, int sqlType, String typeName) throws SQLException {
-        setParameter(parameterIndex, null);
-    }
-
-    @Override
-    public void setURL(int parameterIndex, URL x) throws SQLException {
-        setParameter(parameterIndex, x.toString());
-    }
-
-    @Override
-    public ParameterMetaData getParameterMetaData() throws SQLException {
-        throw new SQLFeatureNotSupportedException("getParameterMetaData not supported");
-    }
-
-    @Override
-    public void setRowId(int parameterIndex, RowId x) throws SQLException {
-        throw new SQLFeatureNotSupportedException("setRowId not supported");
-    }
-
-    @Override
-    public void setNString(int parameterIndex, String value) throws SQLException {
-        setParameter(parameterIndex, value);
-    }
-
-    @Override
-    public void setNCharacterStream(int parameterIndex, Reader value, long length) throws SQLException {
-        throw new SQLFeatureNotSupportedException("setNCharacterStream not supported");
-    }
-
-    @Override
-    public void setNClob(int parameterIndex, NClob value) throws SQLException {
-        throw new SQLFeatureNotSupportedException("setNClob not supported");
-    }
-
-    @Override
-    public void setClob(int parameterIndex, Reader reader, long length) throws SQLException {
-        throw new SQLFeatureNotSupportedException("setClob not supported");
-    }
-
-    @Override
-    public void setBlob(int parameterIndex, InputStream inputStream, long length) throws SQLException {
-        throw new SQLFeatureNotSupportedException("setBlob not supported");
-    }
-
-    @Override
-    public void setNClob(int parameterIndex, Reader reader, long length) throws SQLException {
-        throw new SQLFeatureNotSupportedException("setNClob not supported");
-    }
-
-    @Override
-    public void setSQLXML(int parameterIndex, SQLXML xmlObject) throws SQLException {
-        throw new SQLFeatureNotSupportedException("setSQLXML not supported");
-    }
-
-    @Override
-    public void setObject(int parameterIndex, Object x, int targetSqlType, int scaleOrLength) throws SQLException {
-        setParameter(parameterIndex, x);
-    }
-
-    @Override
-    public void setAsciiStream(int parameterIndex, InputStream x, long length) throws SQLException {
-        throw new SQLFeatureNotSupportedException("setAsciiStream not supported");
-    }
-
-    @Override
-    public void setBinaryStream(int parameterIndex, InputStream x, long length) throws SQLException {
-        throw new SQLFeatureNotSupportedException("setBinaryStream not supported");
-    }
-
-    @Override
-    public void setCharacterStream(int parameterIndex, Reader reader, long length) throws SQLException {
-        throw new SQLFeatureNotSupportedException("setCharacterStream not supported");
-    }
-
-    @Override
-    public void setAsciiStream(int parameterIndex, InputStream x) throws SQLException {
-        throw new SQLFeatureNotSupportedException("setAsciiStream not supported");
-    }
-
-    @Override
-    public void setBinaryStream(int parameterIndex, InputStream x) throws SQLException {
-        throw new SQLFeatureNotSupportedException("setBinaryStream not supported");
-    }
-
-    @Override
-    public void setCharacterStream(int parameterIndex, Reader reader) throws SQLException {
-        throw new SQLFeatureNotSupportedException("setCharacterStream not supported");
-    }
-
-    @Override
-    public void setNCharacterStream(int parameterIndex, Reader value) throws SQLException {
-        throw new SQLFeatureNotSupportedException("setNCharacterStream not supported");
-    }
-
-    @Override
-    public void setClob(int parameterIndex, Reader reader) throws SQLException {
-        throw new SQLFeatureNotSupportedException("setClob not supported");
-    }
-
-    @Override
-    public void setBlob(int parameterIndex, InputStream inputStream) throws SQLException {
-        throw new SQLFeatureNotSupportedException("setBlob not supported");
-    }
-
-    @Override
-    public void setNClob(int parameterIndex, Reader reader) throws SQLException {
-        throw new SQLFeatureNotSupportedException("setNClob not supported");
-    }
+    // Unsupported operations
+    @Override public void setAsciiStream(int i, InputStream x, int len) throws SQLException { throw new SQLFeatureNotSupportedException(); }
+    @Override public void setUnicodeStream(int i, InputStream x, int len) throws SQLException { throw new SQLFeatureNotSupportedException(); }
+    @Override public void setBinaryStream(int i, InputStream x, int len) throws SQLException { throw new SQLFeatureNotSupportedException(); }
+    @Override public void setCharacterStream(int i, Reader r, int len) throws SQLException { throw new SQLFeatureNotSupportedException(); }
+    @Override public void setRef(int i, Ref x) throws SQLException { throw new SQLFeatureNotSupportedException(); }
+    @Override public void setBlob(int i, Blob x) throws SQLException { throw new SQLFeatureNotSupportedException(); }
+    @Override public void setClob(int i, Clob x) throws SQLException { throw new SQLFeatureNotSupportedException(); }
+    @Override public void setArray(int i, Array x) throws SQLException { throw new SQLFeatureNotSupportedException(); }
+    @Override public ResultSetMetaData getMetaData() throws SQLException { throw new SQLFeatureNotSupportedException(); }
+    @Override public ParameterMetaData getParameterMetaData() throws SQLException { throw new SQLFeatureNotSupportedException(); }
+    @Override public void setRowId(int i, RowId x) throws SQLException { throw new SQLFeatureNotSupportedException(); }
+    @Override public void setNCharacterStream(int i, Reader r, long len) throws SQLException { throw new SQLFeatureNotSupportedException(); }
+    @Override public void setNClob(int i, NClob x) throws SQLException { throw new SQLFeatureNotSupportedException(); }
+    @Override public void setClob(int i, Reader r, long len) throws SQLException { throw new SQLFeatureNotSupportedException(); }
+    @Override public void setBlob(int i, InputStream s, long len) throws SQLException { throw new SQLFeatureNotSupportedException(); }
+    @Override public void setNClob(int i, Reader r, long len) throws SQLException { throw new SQLFeatureNotSupportedException(); }
+    @Override public void setSQLXML(int i, SQLXML x) throws SQLException { throw new SQLFeatureNotSupportedException(); }
+    @Override public void setAsciiStream(int i, InputStream x, long len) throws SQLException { throw new SQLFeatureNotSupportedException(); }
+    @Override public void setBinaryStream(int i, InputStream x, long len) throws SQLException { throw new SQLFeatureNotSupportedException(); }
+    @Override public void setCharacterStream(int i, Reader r, long len) throws SQLException { throw new SQLFeatureNotSupportedException(); }
+    @Override public void setAsciiStream(int i, InputStream x) throws SQLException { throw new SQLFeatureNotSupportedException(); }
+    @Override public void setBinaryStream(int i, InputStream x) throws SQLException { throw new SQLFeatureNotSupportedException(); }
+    @Override public void setCharacterStream(int i, Reader r) throws SQLException { throw new SQLFeatureNotSupportedException(); }
+    @Override public void setNCharacterStream(int i, Reader r) throws SQLException { throw new SQLFeatureNotSupportedException(); }
+    @Override public void setClob(int i, Reader r) throws SQLException { throw new SQLFeatureNotSupportedException(); }
+    @Override public void setBlob(int i, InputStream s) throws SQLException { throw new SQLFeatureNotSupportedException(); }
+    @Override public void setNClob(int i, Reader r) throws SQLException { throw new SQLFeatureNotSupportedException(); }
+    @Override public void addBatch() throws SQLException { throw new SQLFeatureNotSupportedException(); }
 }
