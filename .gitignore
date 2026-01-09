@@ -90,6 +90,9 @@ out/
 # VS Code
 .vscode/
 
+# Claude
+.claude/
+
 # Local environment files
 .env
 .env.local
