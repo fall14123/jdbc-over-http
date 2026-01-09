@@ -1,4 +1,4 @@
-package com.fall14123.jdbc.http;
+package io.github.fall14123.jdbc.http;
 
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -14,18 +14,20 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 public class SchemaIntegrationTest {
 
-    record SchemaConfig(String name, String url) {}
+    record SchemaConfig(String name, String url, String user, String password) {}
 
     static Stream<SchemaConfig> schemas() {
         return Stream.of(
-            new SchemaConfig("flock", "jdbc:http://localhost:8080/v1/query"),
-            new SchemaConfig("httpserver", "jdbc:http://localhost:9999/")
+            new SchemaConfig("flock", "jdbc:http://localhost:8080/v1/query", null, null),
+            new SchemaConfig("httpserver", "jdbc:http://localhost:9999/", "user", "pass")
         );
     }
 
     private Connection getConnection(SchemaConfig config) throws SQLException {
         Properties props = new Properties();
         props.setProperty("schema", config.name());
+        if (config.user() != null) props.setProperty("user", config.user());
+        if (config.password() != null) props.setProperty("password", config.password());
         return DriverManager.getConnection(config.url(), props);
     }
 

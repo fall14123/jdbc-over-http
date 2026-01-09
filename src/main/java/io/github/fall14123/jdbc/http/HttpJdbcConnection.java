@@ -1,4 +1,4 @@
-package com.fall14123.jdbc.http;
+package io.github.fall14123.jdbc.http;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
