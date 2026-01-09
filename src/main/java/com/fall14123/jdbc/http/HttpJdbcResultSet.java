@@ -15,9 +15,14 @@ public class HttpJdbcResultSet implements ResultSet {
     private int currentRowIndex = -1;
     private boolean closed = false;
 
+    public HttpJdbcResultSet(QueryResult result) {
+        this.columns = result.getColumns();
+        this.rows = result.getRows() != null ? result.getRows() : List.of();
+    }
+
     public HttpJdbcResultSet(List<String> columns, List<List<Object>> rows) {
         this.columns = columns;
-        this.rows = rows;
+        this.rows = rows != null ? rows : List.of();
     }
 
     @Override

@@ -1,14 +1,14 @@
 # JDBC over HTTP
 
-A JDBC driver wrapper that allows database access over HTTP/HTTPS connections.
+A JDBC driver that allows database access over HTTP/HTTPS connections. Supports multiple backend APIs through configurable schema mappings.
 
 ## Features
 
-- Complete JDBC 4.0 compatible driver implementation
-- HTTP and HTTPS support with optional SSL configuration  
-- Connection pooling and credential management
-- Support for both Statement and PreparedStatement
-- JSON-based communication protocol
+- JDBC 4.0 compatible driver
+- HTTP and HTTPS support
+- Multiple backend support via schema configuration (Flock, DuckDB httpserver, custom)
+- JSONPath-based response parsing for easy adaptation to different APIs
+- Support for Statement and PreparedStatement
 - Compatible with Java 21 (Amazon Corretto)
 
 ## Quick Start
@@ -22,15 +22,7 @@ A JDBC driver wrapper that allows database access over HTTP/HTTPS connections.
 ./gradlew uberjar
 ```
 
-### 2. Test with Curl
-
-Assuming your HTTP server is running on localhost:9999:
-
-```bash
-curl -X POST -d "SELECT 'hello', version()" "http://user:pass@localhost:9999/"
-```
-
-### 3. Use as JDBC Driver
+### 2. Use as JDBC Driver
 
 ```java
 import java.sql.*;
@@ -42,6 +34,7 @@ public class Example {
         Properties props = new Properties();
         props.setProperty("user", "user");
         props.setProperty("password", "pass");
+        props.setProperty("schema", "httpserver");  // or "flock" (default)
         
         try (Connection conn = DriverManager.getConnection(url, props)) {
             try (Statement stmt = conn.createStatement()) {
@@ -58,106 +51,130 @@ public class Example {
 
 ## URL Formats
 
-- HTTP: `jdbc:http://hostname:port/`
-- HTTPS: `jdbc:https://hostname:port/`
+- HTTP: `jdbc:http://hostname:port/path`
+- HTTPS: `jdbc:https://hostname:port/path`
 
-## SSL Configuration
+## Schema Configuration
 
-For HTTPS connections, the server must be configured with SSL certificates. The driver will automatically use HTTPS when the URL scheme is `https://`.
+The driver supports multiple backend APIs via schema configuration.
+
+### Selecting a Schema
+
+```java
+// Via connection property
+props.setProperty("schema", "httpserver");  // or "flock" (default)
+
+// Or via system property
+// -Djdbc.http.schema=httpserver
+```
+
+### Built-in Schemas
+
+| Schema | Description | Use Case |
+|--------|-------------|----------|
+| `flock` | JSON request, NDJSON response (default) | Flock service at `localhost:8080/v1/query` |
+| `httpserver` | Plain text SQL, JSON response | DuckDB httpserver extension at `localhost:9999` |
+
+### Schema Configuration Options
+
+| Property | Description |
+|----------|-------------|
+| **Request** | |
+| `request.contentType` | HTTP Content-Type header (`application/json` or `text/plain`) |
+| `request.template` | Request body template. Variables: `${sql}`, `${parameters}` |
+| `request.parameterTemplate` | Template for each parameter. Variables: `${value}`, `${type}`. If empty, parameters are inlined into SQL |
+| `request.urlSuffix` | Appended to URL (e.g., `?default_format=JSONCompact`) |
+| **Response** | |
+| `response.ndjson` | `true` for streaming NDJSON, `false` for single JSON |
+| `response.columnsPath` | JSONPath to column definitions array |
+| `response.columnNameField` | Field name for column name |
+| `response.columnTypeField` | Field name for column type |
+| `response.errorPath` | JSONPath to error message |
+| `response.updateCountPath` | JSONPath to update count |
+| `response.rowsAsObjects` | `true` if rows are objects `{"col": "val"}`, `false` if arrays `["val"]` |
+| `response.rowsPath` | JSONPath to rows array (non-NDJSON only) |
+
+### Custom Schema
+
+Create `schemas/myschema.properties` on the classpath:
+
+```properties
+# Request
+request.contentType=application/json
+request.template={"sql": "${sql}", "parameters": ${parameters}}
+request.parameterTemplate={"value": ${value}, "type": "${type}"}
+request.urlSuffix=
+
+# Response (uses JSONPath)
+response.ndjson=true
+response.columnsPath=$._meta.columns[*]
+response.columnNameField=name
+response.columnTypeField=type
+response.errorPath=$.error
+response.updateCountPath=$.updateCount
+response.rowsAsObjects=true
+response.rowsPath=$.data[*]
+```
+
+Then use: `props.setProperty("schema", "myschema")`
+
+## Connection Properties
+
+| Property | Default | Description |
+|----------|---------|-------------|
+| `user` | | Username for HTTP Basic Auth |
+| `password` | | Password for HTTP Basic Auth |
+| `schema` | `flock` | Schema configuration name |
+| `connectTimeout` | `30000` | Connection timeout in ms |
+| `readTimeout` | `60000` | Read timeout in ms |
+| `keepAlive` | `true` | Use HTTP keep-alive |
+| `logLevel` | `INFO` | Logging level |
 
 ## Running Tests
 
 ```bash
-# Run unit tests
+# Run all tests (requires both backends running)
 ./gradlew test
 
-# Run example client
-./gradlew run
+# Run generic tests across all schemas
+./gradlew test --tests SchemaIntegrationTest
 
-# Or run the standalone jar
-java -jar build/libs/jdbc-over-http-1.0.0-all.jar
+# Run schema-specific tests
+./gradlew test --tests HttpServerSchemaTest
+./gradlew test --tests FlockSchemaTest
 ```
 
-## API Protocol
-
-The driver communicates with the HTTP server using a simple REST API:
-
-- **Method**: POST
-- **URL**: `/`
-- **Content-Type**: `text/plain`
-- **Body**: SQL query string
-- **Authentication**: HTTP Basic Authentication
-
-### Response Format
-
-#### Success Response (200 OK)
-```json
-{
-  "columns": ["col1", "col2"],
-  "rows": [["value1", "value2"], ["value3", "value4"]],
-  "updateCount": -1
-}
-```
-
-#### Update Response (200 OK)
-```json
-{
-  "columns": null,
-  "rows": null,
-  "updateCount": 5
-}
-```
-
-#### Error Response (500 Internal Server Error)
-```json
-{
-  "error": "Error message"
-}
-```
-
-## Development
-
-### Project Structure
+## Project Structure
 
 ```
 src/
-├── main/java/com/fall14123/jdbc/http/
-│   ├── HttpJdbcDriver.java           # Main driver class
-│   ├── HttpJdbcConnection.java       # Connection implementation
-│   ├── HttpJdbcStatement.java        # Statement implementation
-│   ├── HttpJdbcPreparedStatement.java # PreparedStatement implementation
-│   ├── HttpJdbcResultSet.java        # ResultSet implementation
-│   ├── HttpJdbcResultSetMetaData.java # ResultSet metadata
-│   ├── HttpJdbcDatabaseMetaData.java # Database metadata
-│   ├── QueryResult.java              # Query result data structure
-│   ├── ErrorResponse.java            # Error response data structure
-│   └── HttpJdbcClientExample.java    # Example usage
+├── main/
+│   ├── java/com/fall14123/jdbc/http/
+│   │   ├── HttpJdbcDriver.java           # Driver entry point
+│   │   ├── HttpJdbcConnection.java       # Connection & query execution
+│   │   ├── HttpJdbcStatement.java        # Statement implementation
+│   │   ├── HttpJdbcPreparedStatement.java # PreparedStatement
+│   │   ├── HttpJdbcResultSet.java        # ResultSet implementation
+│   │   ├── SchemaConfig.java             # Schema configuration loader
+│   │   ├── QueryRequest.java             # Request model
+│   │   └── QueryResult.java              # Response model
+│   └── resources/schemas/
+│       ├── flock.properties              # Flock schema config
+│       └── httpserver.properties         # DuckDB httpserver config
 └── test/java/com/fall14123/jdbc/http/
-    └── HttpJdbcClientTest.java       # Unit tests
+    ├── SchemaIntegrationTest.java        # Generic tests for all schemas
+    ├── FlockSchemaTest.java              # Flock-specific tests
+    └── HttpServerSchemaTest.java         # httpserver-specific tests
 ```
-
-### Building from Source
-
-1. Ensure Java 21 is installed
-2. Clone the repository
-3. Run `./gradlew build`
-
-### Key Classes
-
-- **HttpJdbcDriver**: Main entry point, registers with DriverManager
-- **HttpJdbcConnection**: Manages HTTP connections and executes queries
-- **HttpJdbcStatement**: Handles basic SQL statements
-- **HttpJdbcPreparedStatement**: Handles parameterized queries
-- **HttpJdbcResultSet**: Provides access to query results
 
 ## Limitations
 
-- No support for transactions (auto-commit only)
-- No support for stored procedures or callable statements
-- No support for batch updates
-- No support for binary data types (BLOB/CLOB)
+- No transaction support (auto-commit only)
+- No stored procedures / CallableStatement
+- No batch updates
+- No BLOB/CLOB support
 - Limited metadata support
 
 ## License
 
-This project is licensed under the Apache License 2.0.
+Apache License 2.0
