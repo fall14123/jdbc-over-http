@@ -133,13 +133,14 @@ Then use: `props.setProperty("schema", "myschema")`
 ## Running Tests
 
 ```bash
-# Run all tests
+# Run all tests (requires both backends running)
 ./gradlew test
 
-# Run httpserver tests (requires DuckDB httpserver on localhost:9999)
-./gradlew test --tests HttpServerSchemaTest
+# Run generic tests across all schemas
+./gradlew test --tests SchemaIntegrationTest
 
-# Run flock tests (requires Flock on localhost:8080)
+# Run schema-specific tests
+./gradlew test --tests HttpServerSchemaTest
 ./gradlew test --tests FlockSchemaTest
 ```
 
@@ -161,8 +162,9 @@ src/
 │       ├── flock.properties              # Flock schema config
 │       └── httpserver.properties         # DuckDB httpserver config
 └── test/java/com/fall14123/jdbc/http/
-    ├── FlockSchemaTest.java              # Flock integration tests
-    └── HttpServerSchemaTest.java         # httpserver integration tests
+    ├── SchemaIntegrationTest.java        # Generic tests for all schemas
+    ├── FlockSchemaTest.java              # Flock-specific tests
+    └── HttpServerSchemaTest.java         # httpserver-specific tests
 ```
 
 ## Limitations

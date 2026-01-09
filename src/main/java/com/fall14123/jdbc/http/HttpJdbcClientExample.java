@@ -9,6 +9,7 @@ public class HttpJdbcClientExample {
         String url = "jdbc:http://localhost:9999/";
         
         Properties props = new Properties();
+        props.setProperty("schema", "httpserver");
         props.setProperty("user", "user");
         props.setProperty("password", "pass");
         
